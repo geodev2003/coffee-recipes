@@ -41,7 +41,7 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/brewvibe'
     .then(() => console.log('MongoDB Connected'))
     .catch(err => console.error('MongoDB Connection Error:', err));
 
-// Routes
+// Routes - with error handling
 const recipeRoutes = require('./routes/recipeRoutes');
 const authRoutes = require('./routes/authRoutes');
 const userAuthRoutes = require('./routes/userAuthRoutes');
@@ -49,7 +49,24 @@ const userManagementRoutes = require('./routes/userManagementRoutes');
 const statisticsRoutes = require('./routes/statisticsRoutes');
 const wishlistRoutes = require('./routes/wishlistRoutes');
 const commentRoutes = require('./routes/commentRoutes');
-const uploadRoutes = require('./routes/uploadRoutes');
+
+// Try to load uploadRoutes with error handling
+let uploadRoutes;
+try {
+    uploadRoutes = require('./routes/uploadRoutes');
+} catch (error) {
+    console.error('Error loading uploadRoutes:', error.message);
+    // Create a fallback router
+    const express = require('express');
+    uploadRoutes = express.Router();
+    uploadRoutes.post('/single', (req, res) => {
+        res.status(503).json({ success: false, message: 'Upload service temporarily unavailable' });
+    });
+    uploadRoutes.post('/multiple', (req, res) => {
+        res.status(503).json({ success: false, message: 'Upload service temporarily unavailable' });
+    });
+}
+
 const path = require('path');
 const { protect, adminOnly } = require('./middleware/auth');
 
