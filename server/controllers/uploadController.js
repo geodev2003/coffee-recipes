@@ -126,10 +126,15 @@ exports.uploadImage = async (req, res) => {
             });
         }
 
+        // Log upload attempt
+        console.log('Upload attempt - Cloudinary configured:', isCloudinaryConfigured, 'Cloudinary available:', !!cloudinary);
+
         // Try Cloudinary first if configured and available
         if (isCloudinaryConfigured && cloudinary) {
             try {
+                console.log('Attempting to upload to Cloudinary...');
                 const result = await uploadToCloudinary(req.file.buffer, 'coffee-recipes');
+                console.log('✅ Successfully uploaded to Cloudinary:', result.secure_url);
                 return res.status(200).json({
                     success: true,
                     message: 'File uploaded successfully to Cloudinary',
@@ -138,13 +143,23 @@ exports.uploadImage = async (req, res) => {
                     filename: result.original_filename
                 });
             } catch (cloudinaryError) {
-                console.error('Cloudinary upload error:', cloudinaryError);
+                console.error('❌ Cloudinary upload error:', cloudinaryError);
+                console.error('Error details:', cloudinaryError.message);
                 // Fallback to local storage if Cloudinary fails
-                console.log('Falling back to local storage...');
+                console.log('⚠️ Falling back to local storage...');
+            }
+        } else {
+            console.log('⚠️ Cloudinary not configured or not available. Using local storage.');
+            if (!isCloudinaryConfigured) {
+                console.log('   Missing environment variables: CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET');
+            }
+            if (!cloudinary) {
+                console.log('   Cloudinary package not loaded');
             }
         }
 
         // Fallback to local storage
+        console.log('📁 Saving to local storage...');
         if (!req.file.filename) {
             // If using memory storage but Cloudinary failed, save to disk
             const uploadsDir = path.join(__dirname, '../uploads');
@@ -154,24 +169,33 @@ exports.uploadImage = async (req, res) => {
             const filename = `${name}-${uniqueSuffix}${ext}`;
             const filepath = path.join(uploadsDir, filename);
             
+            // Ensure directory exists
+            if (!fs.existsSync(uploadsDir)) {
+                fs.mkdirSync(uploadsDir, { recursive: true });
+            }
+            
             fs.writeFileSync(filepath, req.file.buffer);
             const fileUrl = `/uploads/${filename}`;
             
+            console.log('✅ Saved to local storage:', fileUrl);
             return res.status(200).json({
                 success: true,
-                message: 'File uploaded successfully to local storage',
+                message: 'File uploaded successfully to local storage (Cloudinary not configured)',
                 url: fileUrl,
-                filename: filename
+                filename: filename,
+                storage: 'local'
             });
         }
 
         // If already saved to disk (diskStorage)
         const fileUrl = `/uploads/${req.file.filename}`;
+        console.log('✅ Saved to local storage (disk):', fileUrl);
         res.status(200).json({
             success: true,
             message: 'File uploaded successfully to local storage',
             url: fileUrl,
-            filename: req.file.filename
+            filename: req.file.filename,
+            storage: 'local'
         });
     } catch (error) {
         console.error('Upload error:', error);
