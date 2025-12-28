@@ -175,25 +175,35 @@ exports.uploadImage = async (req, res) => {
             }
             
             fs.writeFileSync(filepath, req.file.buffer);
-            const fileUrl = `/uploads/${filename}`;
+            
+            // Construct full URL from Railway server
+            // Get the origin from request or use environment variable
+            const serverUrl = process.env.SERVER_URL || 
+                             (req.protocol + '://' + req.get('host')) ||
+                             'https://insightful-dream-production.up.railway.app';
+            const fileUrl = `${serverUrl}/uploads/${filename}`;
             
             console.log('✅ Saved to local storage:', fileUrl);
             return res.status(200).json({
                 success: true,
                 message: 'File uploaded successfully to local storage (Cloudinary not configured)',
-                url: fileUrl,
+                url: fileUrl, // Return full URL
                 filename: filename,
                 storage: 'local'
             });
         }
 
         // If already saved to disk (diskStorage)
-        const fileUrl = `/uploads/${req.file.filename}`;
+        // Construct full URL from Railway server
+        const serverUrl = process.env.SERVER_URL || 
+                         (req.protocol + '://' + req.get('host')) ||
+                         'https://insightful-dream-production.up.railway.app';
+        const fileUrl = `${serverUrl}/uploads/${req.file.filename}`;
         console.log('✅ Saved to local storage (disk):', fileUrl);
         res.status(200).json({
             success: true,
             message: 'File uploaded successfully to local storage',
-            url: fileUrl,
+            url: fileUrl, // Return full URL
             filename: req.file.filename,
             storage: 'local'
         });
@@ -244,6 +254,11 @@ exports.uploadImages = async (req, res) => {
         const uploadsDir = path.join(__dirname, '../uploads');
         const fileUrls = [];
         
+        // Construct full URL from Railway server
+        const serverUrl = process.env.SERVER_URL || 
+                         (req.protocol + '://' + req.get('host')) ||
+                         'https://insightful-dream-production.up.railway.app';
+        
         for (const file of req.files) {
             let filename;
             if (file.filename) {
@@ -259,8 +274,9 @@ exports.uploadImages = async (req, res) => {
                 fs.writeFileSync(filepath, file.buffer);
             }
             
+            // Return full URL from Railway server
             fileUrls.push({
-                url: `/uploads/${filename}`,
+                url: `${serverUrl}/uploads/${filename}`,
                 filename: filename
             });
         }

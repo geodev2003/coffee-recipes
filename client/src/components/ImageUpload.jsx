@@ -36,19 +36,9 @@ const ImageUpload = ({ value = '', onChange, multiple = false, maxImages = 10 })
                 // Upload multiple images
                 const response = await uploadImages(files);
                 if (response.success && response.files) {
-                    // Handle both Cloudinary (full URLs) and local storage (relative URLs)
-                    const newUrls = response.files.map(file => {
-                        const url = file.url;
-                        // If it's a relative URL (starts with /uploads), construct full URL
-                        if (url.startsWith('/uploads')) {
-                            const baseUrl = window.location.origin.includes('localhost') 
-                                ? 'http://localhost:5000' 
-                                : window.location.origin;
-                            return baseUrl + url;
-                        }
-                        // Cloudinary URL (already full URL)
-                        return url;
-                    });
+                    // Server now returns full URLs (either Cloudinary or Railway server)
+                    // No need to construct URLs anymore
+                    const newUrls = response.files.map(file => file.url);
                     
                     const updatedUrls = [...previewUrls, ...newUrls];
                     setPreviewUrls(updatedUrls);
@@ -61,17 +51,10 @@ const ImageUpload = ({ value = '', onChange, multiple = false, maxImages = 10 })
                 // Upload single image
                 const response = await uploadImage(files[0]);
                 if (response.success && response.url) {
-                    // Handle both Cloudinary (full URLs) and local storage (relative URLs)
-                    let fullUrl = response.url;
-                    if (fullUrl.startsWith('/uploads')) {
-                        const baseUrl = window.location.origin.includes('localhost') 
-                            ? 'http://localhost:5000' 
-                            : window.location.origin;
-                        fullUrl = baseUrl + fullUrl;
-                    }
-                    setPreviewUrls([fullUrl]);
-                    onChange(fullUrl);
-                    success(`Image uploaded successfully to ${fullUrl.startsWith('https://res.cloudinary.com') ? 'Cloudinary' : 'local storage'}`);
+                    // Server now returns full URLs (either Cloudinary or Railway server)
+                    setPreviewUrls([response.url]);
+                    onChange(response.url);
+                    success(`Image uploaded successfully to ${response.url.startsWith('https://res.cloudinary.com') ? 'Cloudinary' : 'Railway server'}`);
                 }
             }
         } catch (err) {
