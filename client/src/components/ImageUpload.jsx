@@ -36,13 +36,8 @@ const ImageUpload = ({ value = '', onChange, multiple = false, maxImages = 10 })
                 // Upload multiple images
                 const response = await uploadImages(files);
                 if (response.success && response.files) {
-                    const newUrls = response.files.map(file => {
-                        // Construct full URL (file.url already includes /uploads/)
-                        const baseUrl = window.location.origin.includes('localhost') 
-                            ? 'http://localhost:5000' 
-                            : window.location.origin;
-                        return baseUrl + file.url;
-                    });
+                    // Cloudinary returns full URLs, no need to construct
+                    const newUrls = response.files.map(file => file.url);
                     
                     const updatedUrls = [...previewUrls, ...newUrls];
                     setPreviewUrls(updatedUrls);
@@ -53,12 +48,9 @@ const ImageUpload = ({ value = '', onChange, multiple = false, maxImages = 10 })
                 // Upload single image
                 const response = await uploadImage(files[0]);
                 if (response.success && response.url) {
-                    const baseUrl = window.location.origin.includes('localhost') 
-                        ? 'http://localhost:5000' 
-                        : window.location.origin;
-                    const fullUrl = baseUrl + response.url;
-                    setPreviewUrls([fullUrl]);
-                    onChange(fullUrl);
+                    // Cloudinary returns full URL, no need to construct
+                    setPreviewUrls([response.url]);
+                    onChange(response.url);
                     success('Image uploaded successfully');
                 }
             }
