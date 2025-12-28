@@ -1,0 +1,128 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+    
+    html {
+        scroll-behavior: smooth;
+    }
+    
+    body {
+        @apply bg-cream-50 text-coffee-600 antialiased font-sans;
+        background-image: 
+            radial-gradient(at 0% 0%, rgba(124, 179, 66, 0.03) 0px, transparent 50%),
+            radial-gradient(at 100% 100%, rgba(62, 39, 35, 0.03) 0px, transparent 50%);
+    }
+
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6 {
+        @apply font-serif;
+        @apply tracking-tight;
+    }
+    
+    a {
+        @apply no-underline;
+        color: inherit;
+    }
+    
+    a:hover {
+        @apply no-underline;
+    }
+    
+    button {
+        @apply border-none outline-none;
+        background: none;
+        cursor: pointer;
+    }
+    
+    input, textarea, select {
+        @apply outline-none;
+    }
+}
+
+@layer components {
+    .glass-card {
+        @apply bg-white/70 backdrop-blur-xl border border-white/60 shadow-soft rounded-2xl;
+        @apply transition-all duration-300;
+    }
+    
+    .glass-card:hover {
+        @apply shadow-card-hover border-white/80;
+        transform: translateY(-2px);
+    }
+
+    .btn-primary {
+        @apply bg-gradient-forest text-white px-8 py-3 rounded-full;
+        @apply hover:shadow-glow hover:scale-105;
+        @apply transition-all duration-300 font-semibold;
+        @apply active:scale-95;
+    }
+    
+    .btn-secondary {
+        @apply bg-white/80 text-espresso-800 px-6 py-2.5 rounded-xl;
+        @apply hover:bg-white hover:shadow-soft;
+        @apply transition-all duration-200 font-medium;
+        @apply border border-espresso-900/10;
+    }
+    
+    .skeleton {
+        @apply animate-pulse bg-gradient-to-r from-cream-200 via-cream-100 to-cream-200;
+        background-size: 200% 100%;
+        animation: shimmer 2s infinite;
+    }
+    
+    .gradient-text {
+        @apply bg-gradient-coffee bg-clip-text text-transparent;
+    }
+    
+    .search-input {
+        @apply w-full pl-12 pr-4 py-4 bg-white/80 backdrop-blur-sm;
+        @apply border border-espresso-900/10 focus:border-forest-700/50;
+        @apply rounded-2xl outline-none transition-all duration-300;
+        @apply placeholder:text-espresso-800/40 text-espresso-900;
+        @apply focus:shadow-soft focus:bg-white;
+        @apply hover:border-forest-700/30;
+    }
+    
+    .category-btn {
+        @apply px-6 py-3 rounded-xl transition-all duration-300;
+        @apply whitespace-nowrap font-semibold text-sm;
+        @apply relative overflow-hidden;
+    }
+    
+    .category-btn-active {
+        @apply bg-gradient-forest text-white shadow-lg;
+        @apply shadow-forest-700/30 scale-105;
+    }
+    
+    .category-btn-inactive {
+        @apply bg-white/70 text-espresso-800;
+        @apply hover:bg-white hover:shadow-soft;
+        @apply border border-espresso-900/5;
+    }
+}
+
+@layer utilities {
+    .scrollbar-hide {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+    }
+    
+    .scrollbar-hide::-webkit-scrollbar {
+        display: none;
+    }
+    
+    .text-balance {
+        text-wrap: balance;
+    }
+}

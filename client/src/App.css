@@ -1,0 +1,23 @@
+#root {
+  width: 100%;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0;
+}
+
+/* Reset all default link styles */
+a {
+  text-decoration: none !important;
+  color: inherit;
+}
+
+a:hover {
+  text-decoration: none !important;
+}
+
+/* Ensure Tailwind base styles are applied */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
