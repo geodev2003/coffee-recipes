@@ -45,6 +45,7 @@ mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/brewvibe'
 const recipeRoutes = require('./routes/recipeRoutes');
 const authRoutes = require('./routes/authRoutes');
 const userAuthRoutes = require('./routes/userAuthRoutes');
+const userManagementRoutes = require('./routes/userManagementRoutes');
 const statisticsRoutes = require('./routes/statisticsRoutes');
 const wishlistRoutes = require('./routes/wishlistRoutes');
 const commentRoutes = require('./routes/commentRoutes');
@@ -58,6 +59,7 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/api/v1/recipes', recipeRoutes);
 app.use('/api/v1/auth', authRoutes); // Admin auth
 app.use('/api/v1/users', userAuthRoutes); // User auth
+app.use('/api/v1/admin/users', userManagementRoutes); // User management (admin only)
 app.use('/api/v1/statistics', statisticsRoutes);
 app.use('/api/v1/wishlist', wishlistRoutes);
 app.use('/api/v1/comments', commentRoutes);

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Save, X, Coffee, Leaf, GlassWater, LogOut, BarChart3, Eye, Users, BookOpen, TrendingUp } from 'lucide-react';
-import { getRecipes, createRecipe, updateRecipe, deleteRecipe } from '../services/api';
+import { Plus, Edit, Trash2, Save, X, Coffee, Leaf, GlassWater, LogOut, BarChart3, Eye, Users, BookOpen, TrendingUp, Search, Filter, UserCheck, UserX, Shield, User as UserIcon } from 'lucide-react';
+import { getRecipes, createRecipe, updateRecipe, deleteRecipe, getAllUsers, updateUser, toggleUserStatus, deleteUser, getUserStats } from '../services/api';
 import { getDashboardStats } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -14,9 +14,18 @@ const AdminPage = () => {
     const [statsLoading, setStatsLoading] = useState(true);
     const [showForm, setShowForm] = useState(false);
     const [editingRecipe, setEditingRecipe] = useState(null);
-    const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' or 'recipes'
+    const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard', 'recipes', or 'users'
     const { logout, user } = useAuth();
     const navigate = useNavigate();
+
+    // User management state
+    const [users, setUsers] = useState([]);
+    const [userStats, setUserStats] = useState(null);
+    const [usersLoading, setUsersLoading] = useState(true);
+    const [userPagination, setUserPagination] = useState({ currentPage: 1, totalPages: 1, totalUsers: 0 });
+    const [userFilters, setUserFilters] = useState({ search: '', role: '', isActive: '' });
+    const [editingUser, setEditingUser] = useState(null);
+    const [showUserForm, setShowUserForm] = useState(false);
 
     const [formData, setFormData] = useState({
         title: '',
@@ -34,7 +43,17 @@ const AdminPage = () => {
     useEffect(() => {
         fetchRecipes();
         fetchStats();
-    }, []);
+        if (activeTab === 'users') {
+            fetchUsers();
+            fetchUserStats();
+        }
+    }, [activeTab]);
+
+    useEffect(() => {
+        if (activeTab === 'users') {
+            fetchUsers();
+        }
+    }, [userFilters, userPagination.currentPage]);
 
     const fetchRecipes = async () => {
         setLoading(true);
@@ -64,6 +83,35 @@ const AdminPage = () => {
             console.error('Error fetching stats:', error);
         } finally {
             setStatsLoading(false);
+        }
+    };
+
+    const fetchUsers = async () => {
+        setUsersLoading(true);
+        try {
+            const response = await getAllUsers(
+                userPagination.currentPage,
+                10,
+                userFilters.search,
+                userFilters.role,
+                userFilters.isActive
+            );
+            setUsers(response.data.users || []);
+            setUserPagination(response.data.pagination || { currentPage: 1, totalPages: 1, totalUsers: 0 });
+        } catch (error) {
+            console.error('Error fetching users:', error);
+            setUsers([]);
+        } finally {
+            setUsersLoading(false);
+        }
+    };
+
+    const fetchUserStats = async () => {
+        try {
+            const response = await getUserStats();
+            setUserStats(response.data);
+        } catch (error) {
+            console.error('Error fetching user stats:', error);
         }
     };
 
@@ -363,6 +411,17 @@ const AdminPage = () => {
                     >
                         <BookOpen size={20} className="inline-block mr-2" />
                         Recipes Management
+                    </button>
+                    <button
+                        onClick={() => setActiveTab('users')}
+                        className={`px-6 py-3 font-semibold transition-all ${
+                            activeTab === 'users'
+                                ? 'text-forest-800 border-b-2 border-forest-800'
+                                : 'text-coffee-600 hover:text-coffee-900'
+                        }`}
+                    >
+                        <Users size={20} className="inline-block mr-2" />
+                        Users Management
                     </button>
                 </div>
 
@@ -728,6 +787,378 @@ const AdminPage = () => {
                                     Create Your First Recipe
                                 </button>
                             </div>
+                        )}
+                    </motion.div>
+                )}
+
+                {/* Users Management Tab */}
+                {activeTab === 'users' && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="space-y-6"
+                    >
+                        {/* User Statistics */}
+                        {userStats && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                                <StatCard
+                                    icon={Users}
+                                    title="Total Users"
+                                    value={userStats.total}
+                                    subtitle={`${userStats.byRole?.admin || 0} Admins, ${userStats.byRole?.user || 0} Users`}
+                                    color="forest"
+                                />
+                                <StatCard
+                                    icon={UserCheck}
+                                    title="Active Users"
+                                    value={userStats.byStatus?.active || 0}
+                                    subtitle={`${userStats.byStatus?.inactive || 0} Inactive`}
+                                    color="coffee"
+                                />
+                                <StatCard
+                                    icon={TrendingUp}
+                                    title="New (7 days)"
+                                    value={userStats.recent?.last7Days || 0}
+                                    subtitle={`${userStats.recent?.last30Days || 0} in last 30 days`}
+                                    color="forest"
+                                />
+                                <StatCard
+                                    icon={Shield}
+                                    title="Admins"
+                                    value={userStats.byRole?.admin || 0}
+                                    subtitle={`${userStats.byRole?.user || 0} Regular users`}
+                                    color="coffee"
+                                />
+                            </div>
+                        )}
+
+                        {/* Filters and Search */}
+                        <div className="glass-card p-6">
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                                <div className="md:col-span-2">
+                                    <div className="relative">
+                                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-coffee-600" size={20} />
+                                        <input
+                                            type="text"
+                                            placeholder="Search by username or email..."
+                                            value={userFilters.search}
+                                            onChange={(e) => {
+                                                setUserFilters({ ...userFilters, search: e.target.value });
+                                                setUserPagination({ ...userPagination, currentPage: 1 });
+                                            }}
+                                            className="search-input pl-10"
+                                        />
+                                    </div>
+                                </div>
+                                <div>
+                                    <select
+                                        value={userFilters.role}
+                                        onChange={(e) => {
+                                            setUserFilters({ ...userFilters, role: e.target.value });
+                                            setUserPagination({ ...userPagination, currentPage: 1 });
+                                        }}
+                                        className="search-input"
+                                    >
+                                        <option value="">All Roles</option>
+                                        <option value="admin">Admin</option>
+                                        <option value="user">User</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <select
+                                        value={userFilters.isActive}
+                                        onChange={(e) => {
+                                            setUserFilters({ ...userFilters, isActive: e.target.value });
+                                            setUserPagination({ ...userPagination, currentPage: 1 });
+                                        }}
+                                        className="search-input"
+                                    >
+                                        <option value="">All Status</option>
+                                        <option value="true">Active</option>
+                                        <option value="false">Inactive</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* User Edit Modal */}
+                        <AnimatePresence mode="wait">
+                            {showUserForm && editingUser && (
+                                <motion.div
+                                    key="user-modal-overlay"
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    exit={{ opacity: 0 }}
+                                    className="fixed inset-0 bg-coffee-900/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4"
+                                    onClick={() => {
+                                        setShowUserForm(false);
+                                        setEditingUser(null);
+                                    }}
+                                >
+                                    <motion.div
+                                        key="user-modal-content"
+                                        initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                                        animate={{ scale: 1, opacity: 1, y: 0 }}
+                                        exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="bg-white rounded-2xl shadow-2xl p-6 md:p-8 max-w-md w-full"
+                                    >
+                                        <div className="flex items-center justify-between mb-6">
+                                            <h2 className="text-2xl font-serif font-bold text-coffee-900">
+                                                Edit User
+                                            </h2>
+                                            <button
+                                                onClick={() => {
+                                                    setShowUserForm(false);
+                                                    setEditingUser(null);
+                                                }}
+                                                className="p-2 hover:bg-coffee-900/5 rounded-lg transition-colors"
+                                            >
+                                                <X size={24} />
+                                            </button>
+                                        </div>
+
+                                        <form
+                                            onSubmit={async (e) => {
+                                                e.preventDefault();
+                                                try {
+                                                    await updateUser(editingUser.id, {
+                                                        username: editingUser.username,
+                                                        email: editingUser.email,
+                                                        role: editingUser.role
+                                                    });
+                                                    alert('User updated successfully!');
+                                                    setShowUserForm(false);
+                                                    setEditingUser(null);
+                                                    fetchUsers();
+                                                    fetchUserStats();
+                                                } catch (error) {
+                                                    alert(error.response?.data?.message || 'Error updating user');
+                                                }
+                                            }}
+                                            className="space-y-4"
+                                        >
+                                            <div>
+                                                <label className="block text-sm font-semibold mb-2 text-coffee-800">
+                                                    Username
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    required
+                                                    value={editingUser.username}
+                                                    onChange={(e) => setEditingUser({ ...editingUser, username: e.target.value })}
+                                                    className="search-input"
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-semibold mb-2 text-coffee-800">
+                                                    Email
+                                                </label>
+                                                <input
+                                                    type="email"
+                                                    required
+                                                    value={editingUser.email}
+                                                    onChange={(e) => setEditingUser({ ...editingUser, email: e.target.value })}
+                                                    className="search-input"
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-semibold mb-2 text-coffee-800">
+                                                    Role
+                                                </label>
+                                                <select
+                                                    value={editingUser.role}
+                                                    onChange={(e) => setEditingUser({ ...editingUser, role: e.target.value })}
+                                                    className="search-input"
+                                                >
+                                                    <option value="user">User</option>
+                                                    <option value="admin">Admin</option>
+                                                </select>
+                                            </div>
+
+                                            <div className="flex gap-4 pt-4">
+                                                <motion.button
+                                                    type="submit"
+                                                    whileHover={{ scale: 1.05 }}
+                                                    whileTap={{ scale: 0.95 }}
+                                                    className="btn-primary flex items-center gap-2 flex-1"
+                                                >
+                                                    <Save size={20} />
+                                                    Update User
+                                                </motion.button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setShowUserForm(false);
+                                                        setEditingUser(null);
+                                                    }}
+                                                    className="btn-secondary flex-1"
+                                                >
+                                                    Cancel
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </motion.div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+
+                        {/* Users List */}
+                        {usersLoading ? (
+                            <div className="text-center py-20">
+                                <div className="animate-pulse text-coffee-600/60">Loading users...</div>
+                            </div>
+                        ) : (
+                            <>
+                                <div className="glass-card p-6">
+                                    <div className="space-y-4">
+                                        {users.map((userItem, index) => (
+                                            <motion.div
+                                                key={userItem.id || userItem._id}
+                                                initial={{ opacity: 0, y: 20 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                transition={{ delay: index * 0.05 }}
+                                                className="flex items-center justify-between p-4 bg-cream-50 rounded-lg hover:bg-cream-100 transition-colors"
+                                            >
+                                                <div className="flex items-center gap-4 flex-1">
+                                                    <div className={`p-3 rounded-lg ${
+                                                        userItem.role === 'admin' 
+                                                            ? 'bg-forest-800/10 text-forest-800' 
+                                                            : 'bg-coffee-800/10 text-coffee-800'
+                                                    }`}>
+                                                        {userItem.role === 'admin' ? (
+                                                            <Shield size={24} />
+                                                        ) : (
+                                                            <UserIcon size={24} />
+                                                        )}
+                                                    </div>
+                                                    <div className="flex-1">
+                                                        <div className="flex items-center gap-2">
+                                                            <h3 className="font-semibold text-coffee-900">
+                                                                {userItem.username}
+                                                            </h3>
+                                                            {userItem.role === 'admin' && (
+                                                                <span className="px-2 py-0.5 text-xs bg-forest-800/10 text-forest-800 rounded">
+                                                                    Admin
+                                                                </span>
+                                                            )}
+                                                            {!userItem.isActive && (
+                                                                <span className="px-2 py-0.5 text-xs bg-red-100 text-red-600 rounded">
+                                                                    Inactive
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                        <p className="text-sm text-coffee-600/60">{userItem.email}</p>
+                                                        <p className="text-xs text-coffee-600/40 mt-1">
+                                                            Joined: {new Date(userItem.createdAt).toLocaleDateString()}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex gap-2">
+                                                    <button
+                                                        onClick={() => {
+                                                            setEditingUser({
+                                                                id: userItem.id || userItem._id,
+                                                                username: userItem.username,
+                                                                email: userItem.email,
+                                                                role: userItem.role
+                                                            });
+                                                            setShowUserForm(true);
+                                                        }}
+                                                        className="btn-secondary text-sm flex items-center gap-2"
+                                                    >
+                                                        <Edit size={16} />
+                                                        Edit
+                                                    </button>
+                                                    <button
+                                                        onClick={async () => {
+                                                            if (!window.confirm(`Are you sure you want to ${userItem.isActive ? 'deactivate' : 'activate'} this user?`)) {
+                                                                return;
+                                                            }
+                                                            try {
+                                                                await toggleUserStatus(userItem.id || userItem._id);
+                                                                fetchUsers();
+                                                                fetchUserStats();
+                                                            } catch (error) {
+                                                                alert(error.response?.data?.message || 'Error toggling user status');
+                                                            }
+                                                        }}
+                                                        className={`btn-secondary text-sm flex items-center gap-2 ${
+                                                            userItem.isActive 
+                                                                ? 'text-orange-600 hover:bg-orange-50' 
+                                                                : 'text-green-600 hover:bg-green-50'
+                                                        }`}
+                                                    >
+                                                        {userItem.isActive ? (
+                                                            <>
+                                                                <UserX size={16} />
+                                                                Deactivate
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <UserCheck size={16} />
+                                                                Activate
+                                                            </>
+                                                        )}
+                                                    </button>
+                                                    <button
+                                                        onClick={async () => {
+                                                            if (!window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+                                                                return;
+                                                            }
+                                                            try {
+                                                                await deleteUser(userItem.id || userItem._id);
+                                                                alert('User deleted successfully!');
+                                                                fetchUsers();
+                                                                fetchUserStats();
+                                                            } catch (error) {
+                                                                alert(error.response?.data?.message || 'Error deleting user');
+                                                            }
+                                                        }}
+                                                        className="btn-secondary text-sm flex items-center gap-2 text-red-600 hover:bg-red-50"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                        Delete
+                                                    </button>
+                                                </div>
+                                            </motion.div>
+                                        ))}
+                                    </div>
+
+                                    {/* Pagination */}
+                                    {userPagination.totalPages > 1 && (
+                                        <div className="flex items-center justify-between mt-6 pt-6 border-t border-coffee-900/10">
+                                            <p className="text-sm text-coffee-600/60">
+                                                Showing {((userPagination.currentPage - 1) * 10) + 1} to {Math.min(userPagination.currentPage * 10, userPagination.totalUsers)} of {userPagination.totalUsers} users
+                                            </p>
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={() => setUserPagination({ ...userPagination, currentPage: userPagination.currentPage - 1 })}
+                                                    disabled={userPagination.currentPage === 1}
+                                                    className="btn-secondary text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                                >
+                                                    Previous
+                                                </button>
+                                                <button
+                                                    onClick={() => setUserPagination({ ...userPagination, currentPage: userPagination.currentPage + 1 })}
+                                                    disabled={userPagination.currentPage >= userPagination.totalPages}
+                                                    className="btn-secondary text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                                >
+                                                    Next
+                                                </button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {!usersLoading && users.length === 0 && (
+                                    <div className="text-center py-20">
+                                        <p className="text-coffee-600/60 text-lg">No users found</p>
+                                    </div>
+                                )}
+                            </>
                         )}
                     </motion.div>
                 )}

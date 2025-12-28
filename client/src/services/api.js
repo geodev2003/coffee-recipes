@@ -374,4 +374,67 @@ export const uploadImages = async (files) => {
     }
 };
 
+// User Management API (Admin only)
+export const getAllUsers = async (page = 1, limit = 10, search = '', role = '', isActive = '') => {
+    try {
+        const response = await api.get('/admin/users', {
+            params: { page, limit, search, role, isActive }
+        });
+        return response.data;
+    } catch (error) {
+        console.error("Error fetching users", error);
+        throw error;
+    }
+};
+
+export const getUserById = async (id) => {
+    try {
+        const response = await api.get(`/admin/users/${id}`);
+        return response.data;
+    } catch (error) {
+        console.error("Error fetching user", error);
+        throw error;
+    }
+};
+
+export const updateUser = async (id, userData) => {
+    try {
+        const response = await api.put(`/admin/users/${id}`, userData);
+        return response.data;
+    } catch (error) {
+        console.error("Error updating user", error);
+        throw error;
+    }
+};
+
+export const toggleUserStatus = async (id) => {
+    try {
+        const response = await api.patch(`/admin/users/${id}/toggle-status`);
+        return response.data;
+    } catch (error) {
+        console.error("Error toggling user status", error);
+        throw error;
+    }
+};
+
+export const deleteUser = async (id) => {
+    try {
+        const response = await api.delete(`/admin/users/${id}`);
+        return response.data;
+    } catch (error) {
+        console.error("Error deleting user", error);
+        throw error;
+    }
+};
+
+export const getUserStats = async () => {
+    try {
+        const response = await api.get('/admin/users/stats');
+        return response.data;
+    } catch (error) {
+        console.error("Error fetching user stats", error);
+        throw error;
+    }
+};
+
 export default api;
