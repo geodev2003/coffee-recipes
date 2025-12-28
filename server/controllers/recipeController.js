@@ -167,8 +167,11 @@ exports.createRecipe = async (req, res) => {
             })),
             instructions: instructions.map(inst => inst.trim()).filter(inst => inst),
             calories: req.body.calories ? parseInt(req.body.calories) : undefined,
-            images: Array.isArray(req.body.images) ? req.body.images.filter(img => img && img.trim()) : [],
-            image: req.body.image || undefined,
+            // Store images array - can contain Cloudinary URLs or local URLs
+            images: Array.isArray(req.body.images) 
+                ? req.body.images.filter(img => img && img.trim()).map(img => img.trim())
+                : (req.body.images ? [req.body.images.trim()].filter(img => img) : []),
+            image: req.body.image || undefined, // Keep for backward compatibility
         };
 
         console.log('Creating recipe with data:', JSON.stringify(recipeData, null, 2));
@@ -201,11 +204,62 @@ exports.createRecipe = async (req, res) => {
 // Update recipe
 exports.updateRecipe = async (req, res) => {
     try {
-        const updatedRecipe = await Recipe.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
-        if (!updatedRecipe) return res.status(404).json({ message: 'Recipe not found' });
+        // Prepare update data similar to create
+        const updateData = { ...req.body };
+        
+        // Handle images array - can contain Cloudinary URLs or local URLs
+        if (updateData.images !== undefined) {
+            if (Array.isArray(updateData.images)) {
+                updateData.images = updateData.images.filter(img => img && img.trim()).map(img => img.trim());
+            } else if (typeof updateData.images === 'string') {
+                updateData.images = updateData.images.split('\n').filter(img => img.trim()).map(img => img.trim());
+            }
+        }
+        
+        // Handle ingredients if provided
+        if (updateData.ingredients && Array.isArray(updateData.ingredients)) {
+            updateData.ingredients = updateData.ingredients.map(ing => ({
+                name: ing.name ? ing.name.trim() : '',
+                amount: String(ing.amount || '1'),
+                unit: String(ing.unit || '')
+            }));
+        }
+        
+        // Handle instructions if provided
+        if (updateData.instructions && Array.isArray(updateData.instructions)) {
+            updateData.instructions = updateData.instructions.map(inst => inst.trim()).filter(inst => inst);
+        }
+        
+        // Handle numeric fields
+        if (updateData.prepTime !== undefined) {
+            updateData.prepTime = parseInt(updateData.prepTime);
+        }
+        if (updateData.calories !== undefined && updateData.calories !== null) {
+            updateData.calories = parseInt(updateData.calories);
+        }
+        
+        const updatedRecipe = await Recipe.findByIdAndUpdate(
+            req.params.id, 
+            updateData, 
+            { new: true, runValidators: true }
+        );
+        
+        if (!updatedRecipe) {
+            return res.status(404).json({ message: 'Recipe not found' });
+        }
+        
         res.status(200).json(updatedRecipe);
     } catch (error) {
-        res.status(400).json({ message: error.message });
+        console.error('Error updating recipe:', error);
+        // Handle validation errors
+        if (error.name === 'ValidationError') {
+            const errors = Object.values(error.errors).map(err => err.message);
+            return res.status(400).json({ 
+                message: 'Validation error',
+                errors 
+            });
+        }
+        res.status(400).json({ message: error.message || 'Error updating recipe' });
     }
 };
 

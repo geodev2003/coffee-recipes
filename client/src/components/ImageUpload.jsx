@@ -52,8 +52,10 @@ const ImageUpload = ({ value = '', onChange, multiple = false, maxImages = 10 })
                     
                     const updatedUrls = [...previewUrls, ...newUrls];
                     setPreviewUrls(updatedUrls);
+                    // Join URLs with newline for form storage
+                    // Cloudinary URLs are already full URLs, local URLs are constructed
                     onChange(updatedUrls.join('\n'));
-                    success(`Successfully uploaded ${newUrls.length} image(s)`);
+                    success(`Successfully uploaded ${newUrls.length} image(s) to ${url.startsWith('https://res.cloudinary.com') ? 'Cloudinary' : 'local storage'}`);
                 }
             } else {
                 // Upload single image
@@ -69,7 +71,7 @@ const ImageUpload = ({ value = '', onChange, multiple = false, maxImages = 10 })
                     }
                     setPreviewUrls([fullUrl]);
                     onChange(fullUrl);
-                    success('Image uploaded successfully');
+                    success(`Image uploaded successfully to ${fullUrl.startsWith('https://res.cloudinary.com') ? 'Cloudinary' : 'local storage'}`);
                 }
             }
         } catch (err) {
