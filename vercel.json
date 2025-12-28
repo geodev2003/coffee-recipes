@@ -3,7 +3,7 @@
     "rewrites": [
       {
         "source": "/api/v1/(.*)",
-        "destination": "server/server.js"
+        "destination": "http://localhost:5000/api/v1/$1"
       },
       {
         "source": "/(.*)",
