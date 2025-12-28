@@ -2,3 +2,13 @@ client/node_modules
 server/node_modules
 client/.env
 server/.env
+.env.local
+.env.production
+.DS_Store
+*.log
+dist
+build
+.vercel
+uploads
+server/uploads
+.env*.local

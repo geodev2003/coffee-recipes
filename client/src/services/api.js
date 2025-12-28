@@ -1,7 +1,16 @@
 import axios from 'axios';
 import { getAuthToken } from '../utils/auth';
 
-const API_URL = 'http://localhost:5000/api/v1';
+// Detect environment and set API URL
+const isProduction = import.meta.env.PROD;
+const isVercel = typeof window !== 'undefined' && 
+  (window.location.hostname.includes('vercel.app') || 
+   window.location.hostname.includes('vercel.com'));
+
+// Use relative path for production/Vercel, absolute for development
+const API_URL = (isProduction || isVercel) 
+  ? '/api/v1'  // Relative path - Vercel will route to backend
+  : (import.meta.env.VITE_API_URL || 'http://localhost:5000/api/v1');
 
 const api = axios.create({
     baseURL: API_URL,

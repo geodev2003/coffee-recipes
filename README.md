@@ -4,8 +4,10 @@ A full-stack MERN (MongoDB, Express, React, Node.js) web application for discove
 
 ## 📚 Documentation
 
-- **[Deployment Guide](./DEPLOYMENT_GUIDE.md)** - Hướng dẫn deploy chi tiết lên server production
-- **[Quick Deployment Guide](./DEPLOYMENT_QUICK_START.md)** - Hướng dẫn deploy nhanh (tóm tắt)
+- **[Vercel Quick Start](./VERCEL_QUICK_START.md)** - Deploy nhanh lên Vercel trong 5 phút ⚡
+- **[Vercel Deployment Guide](./VERCEL_DEPLOYMENT_GUIDE.md)** - Hướng dẫn deploy chi tiết lên Vercel
+- **[Fix 404 Error](./VERCEL_FIX_404.md)** - Giải pháp cho lỗi 404
+- **[Simple Config](./VERCEL_SIMPLE_CONFIG.md)** - Cấu hình đơn giản (khuyến nghị)
 
 ## 📁 Project Structure
 
