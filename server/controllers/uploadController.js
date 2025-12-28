@@ -1,7 +1,6 @@
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
-const cloudinary = require('cloudinary').v2;
 const { Readable } = require('stream');
 
 // Check if Cloudinary is configured
@@ -10,31 +9,39 @@ const isCloudinaryConfigured =
     process.env.CLOUDINARY_API_KEY && 
     process.env.CLOUDINARY_API_SECRET;
 
-// Configure Cloudinary if credentials are available
+// Conditionally require and configure Cloudinary
+let cloudinary = null;
 if (isCloudinaryConfigured) {
-    cloudinary.config({
-        cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-        api_key: process.env.CLOUDINARY_API_KEY,
-        api_secret: process.env.CLOUDINARY_API_SECRET
-    });
-    console.log('✅ Cloudinary configured successfully');
+    try {
+        cloudinary = require('cloudinary').v2;
+        cloudinary.config({
+            cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+            api_key: process.env.CLOUDINARY_API_KEY,
+            api_secret: process.env.CLOUDINARY_API_SECRET
+        });
+        console.log('✅ Cloudinary configured successfully');
+    } catch (error) {
+        console.warn('⚠️  Cloudinary package not installed. Using local storage fallback.');
+        console.warn('   Install with: npm install cloudinary');
+        cloudinary = null;
+    }
 } else {
     console.warn('⚠️  Cloudinary not configured. Using local storage fallback.');
-    // Fallback to local storage
-    const uploadsDir = path.join(__dirname, '../uploads');
-    if (!fs.existsSync(uploadsDir)) {
-        fs.mkdirSync(uploadsDir, { recursive: true });
-    }
+}
+
+// Ensure uploads directory exists for local storage
+const uploadsDir = path.join(__dirname, '../uploads');
+if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
 // Configure multer storage based on Cloudinary availability
 let storage;
-if (isCloudinaryConfigured) {
+if (isCloudinaryConfigured && cloudinary) {
     // Use memory storage for Cloudinary
     storage = multer.memoryStorage();
 } else {
     // Use disk storage for local fallback
-    const uploadsDir = path.join(__dirname, '../uploads');
     storage = multer.diskStorage({
         destination: (req, file, cb) => {
             cb(null, uploadsDir);
@@ -78,6 +85,10 @@ exports.uploadMultiple = upload.array('images', 10); // Max 10 images
 
 // Helper function to upload buffer to Cloudinary
 const uploadToCloudinary = (buffer, folder = 'coffee-recipes') => {
+    if (!cloudinary) {
+        throw new Error('Cloudinary is not available');
+    }
+    
     return new Promise((resolve, reject) => {
         const uploadStream = cloudinary.uploader.upload_stream(
             {
@@ -115,8 +126,8 @@ exports.uploadImage = async (req, res) => {
             });
         }
 
-        // Try Cloudinary first if configured
-        if (isCloudinaryConfigured) {
+        // Try Cloudinary first if configured and available
+        if (isCloudinaryConfigured && cloudinary) {
             try {
                 const result = await uploadToCloudinary(req.file.buffer, 'coffee-recipes');
                 return res.status(200).json({
@@ -182,8 +193,8 @@ exports.uploadImages = async (req, res) => {
             });
         }
 
-        // Try Cloudinary first if configured
-        if (isCloudinaryConfigured) {
+        // Try Cloudinary first if configured and available
+        if (isCloudinaryConfigured && cloudinary) {
             try {
                 const uploadPromises = req.files.map(file => 
                     uploadToCloudinary(file.buffer, 'coffee-recipes')
@@ -248,6 +259,13 @@ exports.uploadImages = async (req, res) => {
 // Optional: Delete image from Cloudinary
 exports.deleteImage = async (req, res) => {
     try {
+        if (!cloudinary) {
+            return res.status(400).json({
+                success: false,
+                message: 'Cloudinary is not configured'
+            });
+        }
+
         const { public_id } = req.body;
         
         if (!public_id) {
