@@ -1,0 +1,24 @@
+module.exports = {
+  apps: [{
+    name: 'brewvibe-api',
+    script: 'server.js',
+    instances: 2, // Số instances (hoặc 'max' để dùng tất cả CPU cores)
+    exec_mode: 'cluster',
+    env: {
+      NODE_ENV: 'production',
+      PORT: 5000
+    },
+    error_file: './logs/err.log',
+    out_file: './logs/out.log',
+    log_date_format: 'YYYY-MM-DD HH:mm Z',
+    merge_logs: true,
+    autorestart: true,
+    watch: false,
+    max_memory_restart: '1G',
+    // Graceful shutdown
+    kill_timeout: 5000,
+    wait_ready: true,
+    listen_timeout: 10000
+  }]
+};
+

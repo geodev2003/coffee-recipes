@@ -113,11 +113,88 @@ exports.getRecipeById = async (req, res) => {
 // Create recipe
 exports.createRecipe = async (req, res) => {
     try {
-        const newRecipe = new Recipe(req.body);
+        // Validate required fields
+        const { title, description, category, prepTime, ingredients, instructions } = req.body;
+        
+        if (!title || !description || !category || !prepTime || !ingredients || !instructions) {
+            return res.status(400).json({ 
+                message: 'Missing required fields',
+                required: ['title', 'description', 'category', 'prepTime', 'ingredients', 'instructions']
+            });
+        }
+
+        // Ensure ingredients is an array
+        if (!Array.isArray(ingredients) || ingredients.length === 0) {
+            return res.status(400).json({ 
+                message: 'Ingredients must be a non-empty array',
+                received: typeof ingredients
+            });
+        }
+
+        // Validate each ingredient has required fields
+        for (let i = 0; i < ingredients.length; i++) {
+            const ing = ingredients[i];
+            if (!ing.name || typeof ing.name !== 'string' || !ing.name.trim()) {
+                return res.status(400).json({ 
+                    message: `Ingredient ${i + 1} is missing a name` 
+                });
+            }
+            if (ing.amount === undefined || ing.amount === null || ing.amount === '') {
+                return res.status(400).json({ 
+                    message: `Ingredient ${i + 1} (${ing.name}) is missing an amount` 
+                });
+            }
+        }
+
+        // Ensure instructions is an array
+        if (!Array.isArray(instructions) || instructions.length === 0) {
+            return res.status(400).json({ 
+                message: 'Instructions must be a non-empty array' 
+            });
+        }
+
+        // Prepare recipe data
+        const recipeData = {
+            title: title.trim(),
+            description: description.trim(),
+            category,
+            prepTime: parseInt(prepTime),
+            difficulty: req.body.difficulty || 'Medium',
+            ingredients: ingredients.map(ing => ({
+                name: ing.name.trim(),
+                amount: String(ing.amount || '1'), // Ensure amount is a string
+                unit: String(ing.unit || '')
+            })),
+            instructions: instructions.map(inst => inst.trim()).filter(inst => inst),
+            calories: req.body.calories ? parseInt(req.body.calories) : undefined,
+            images: Array.isArray(req.body.images) ? req.body.images.filter(img => img && img.trim()) : [],
+            image: req.body.image || undefined,
+        };
+
+        console.log('Creating recipe with data:', JSON.stringify(recipeData, null, 2));
+        const newRecipe = new Recipe(recipeData);
         const savedRecipe = await newRecipe.save();
         res.status(201).json(savedRecipe);
     } catch (error) {
-        res.status(400).json({ message: error.message });
+        console.error('Error creating recipe:', error);
+        // Handle validation errors
+        if (error.name === 'ValidationError') {
+            const errors = Object.values(error.errors).map(err => err.message);
+            return res.status(400).json({ 
+                message: 'Validation error',
+                errors 
+            });
+        }
+        // Handle duplicate slug error
+        if (error.code === 11000) {
+            return res.status(400).json({ 
+                message: 'A recipe with this title already exists' 
+            });
+        }
+        res.status(400).json({ 
+            message: error.message || 'Error creating recipe',
+            error: error.toString()
+        });
     }
 };
 

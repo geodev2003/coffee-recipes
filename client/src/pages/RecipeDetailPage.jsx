@@ -7,6 +7,7 @@ import { addToWishlist, removeFromWishlist, checkWishlist } from '../services/ap
 import RecipeCard from '../components/RecipeCard';
 import CommentSection from '../components/CommentSection';
 import PrintRecipe from '../components/PrintRecipe';
+import ImageGallery from '../components/ImageGallery';
 import { motion } from 'framer-motion';
 
 const RecipeDetailPage = () => {
@@ -186,19 +187,28 @@ const RecipeDetailPage = () => {
                     animate={{ opacity: 1, y: 0 }}
                     className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12"
                 >
-                    {/* Image */}
-                    <div className="relative h-96 lg:h-[500px] rounded-2xl overflow-hidden shadow-card">
-                        <img
-                            src={recipe.image || recipe.imageUrl || "https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&q=80&w=800"}
-                            alt={recipe.title}
-                            className="w-full h-full object-cover"
-                        />
-                        <div className="absolute top-4 right-4">
-                            <span className="bg-white/95 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-bold uppercase tracking-wider text-forest-800 shadow-lg flex items-center gap-2">
-                                {getCategoryIcon(recipe.category)}
-                                {recipe.category}
-                            </span>
-                        </div>
+                    {/* Image Gallery */}
+                    <div className="relative">
+                        {/* Get images: support both images array and single image for backward compatibility */}
+                        {(() => {
+                            const images = recipe.images && recipe.images.length > 0 
+                                ? recipe.images 
+                                : (recipe.image || recipe.imageUrl 
+                                    ? [recipe.image || recipe.imageUrl] 
+                                    : ["https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&q=80&w=800"]);
+                            
+                            return (
+                                <div className="relative">
+                                    <ImageGallery images={images} />
+                                    <div className="absolute top-4 right-4 z-10">
+                                        <span className="bg-white/95 backdrop-blur-sm px-4 py-2 rounded-full text-sm font-bold uppercase tracking-wider text-forest-800 shadow-lg flex items-center gap-2">
+                                            {getCategoryIcon(recipe.category)}
+                                            {recipe.category}
+                                        </span>
+                                    </div>
+                                </div>
+                            );
+                        })()}
                     </div>
 
                     {/* Recipe Info */}

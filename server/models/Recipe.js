@@ -11,7 +11,7 @@ const recipeSchema = new mongoose.Schema({
   title: { type: String, required: true },
   slug: { 
     type: String, 
-    required: true, 
+    required: false, // Will be auto-generated in pre-save hook
     unique: true,
     lowercase: true,
     trim: true
@@ -25,7 +25,8 @@ const recipeSchema = new mongoose.Schema({
     enum: ['Easy', 'Medium', 'Hard'], 
     default: 'Medium' 
   },
-  image: { type: String },
+  image: { type: String }, // Keep for backward compatibility
+  images: [{ type: String }], // Array of image URLs
   category: { 
     type: String, 
     enum: ['Coffee', 'Tea', 'Mocktail'], 
@@ -37,14 +38,19 @@ const recipeSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // Generate slug from title before saving
-recipeSchema.pre('save', function(next) {
-  if (this.isModified('title') && !this.slug) {
+recipeSchema.pre('save', function() {
+  // Always generate slug if it doesn't exist or if title is modified
+  if (!this.slug || this.isModified('title')) {
     this.slug = this.title
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/(^-|-$)/g, '');
+    
+    // Ensure slug is not empty
+    if (!this.slug) {
+      this.slug = 'recipe-' + Date.now();
+    }
   }
-  next();
 });
 
 module.exports = mongoose.model('Recipe', recipeSchema);

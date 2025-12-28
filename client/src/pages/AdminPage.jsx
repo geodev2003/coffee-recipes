@@ -5,6 +5,7 @@ import { getDashboardStats } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import ImageUpload from '../components/ImageUpload';
 
 const AdminPage = () => {
     const [recipes, setRecipes] = useState([]);
@@ -24,7 +25,8 @@ const AdminPage = () => {
         prepTime: '',
         difficulty: 'Easy',
         calories: '',
-        image: '',
+        image: '', // Keep for backward compatibility
+        images: '', // Multiple images (one URL per line)
         ingredients: '',
         instructions: '',
     });
@@ -37,10 +39,17 @@ const AdminPage = () => {
     const fetchRecipes = async () => {
         setLoading(true);
         try {
-            const data = await getRecipes('', 'All');
-            setRecipes(data || []);
+            const response = await getRecipes('', 'All', {}, 1, 1000);
+            // Handle new API format with pagination
+            if (response.recipes) {
+                setRecipes(response.recipes || []);
+            } else {
+                // Fallback for old format
+                setRecipes(Array.isArray(response) ? response : []);
+            }
         } catch (error) {
             console.error('Error fetching recipes:', error);
+            setRecipes([]);
         } finally {
             setLoading(false);
         }
@@ -66,32 +75,100 @@ const AdminPage = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
-            // Parse ingredients (format: "name|amount|unit" per line)
+            // Validate required fields
+            if (!formData.title || !formData.description || !formData.prepTime || !formData.ingredients || !formData.instructions) {
+                alert('Please fill in all required fields');
+                return;
+            }
+
+            // Parse ingredients (format: "name|amount|unit" per line, or just "name")
             const ingredientsArray = formData.ingredients
                 .split('\n')
                 .filter(i => i.trim())
                 .map(line => {
-                    const parts = line.split('|').map(p => p.trim());
-                    return {
-                        name: parts[0] || parts[0],
-                        amount: parts[1] || parts[1] || '',
-                        unit: parts[2] || ''
-                    };
-                });
+                    const trimmedLine = line.trim();
+                    // If line contains |, split by |, otherwise treat whole line as name
+                    if (trimmedLine.includes('|')) {
+                        const parts = trimmedLine.split('|').map(p => p.trim());
+                        return {
+                            name: parts[0] || '',
+                            amount: parts[1] || '1', // Default to '1' if not provided
+                            unit: parts[2] || ''
+                        };
+                    } else {
+                        // If no |, treat entire line as ingredient name
+                        return {
+                            name: trimmedLine,
+                            amount: '1', // Default amount
+                            unit: ''
+                        };
+                    }
+                })
+                .filter(ing => ing.name && ing.name.trim()); // Remove empty ingredients
+
+            if (ingredientsArray.length === 0) {
+                alert('Please add at least one ingredient');
+                return;
+            }
+
+            // Parse instructions
+            const instructionsArray = formData.instructions
+                .split('\n')
+                .filter(i => i.trim());
+
+            if (instructionsArray.length === 0) {
+                alert('Please add at least one instruction');
+                return;
+            }
+
+            // Parse images (one URL per line or from ImageUpload component)
+            let imagesArray = [];
+            if (formData.images) {
+                // Check if it's a newline-separated string or already an array
+                if (typeof formData.images === 'string') {
+                    imagesArray = formData.images
+                        .split('\n')
+                        .filter(img => img.trim())
+                        .map(img => img.trim());
+                } else if (Array.isArray(formData.images)) {
+                    imagesArray = formData.images.filter(img => img && img.trim());
+                }
+            }
+
+            // If no images from images field, check single image field
+            if (imagesArray.length === 0 && formData.image) {
+                imagesArray = [formData.image];
+            }
 
             const recipeData = {
-                ...formData,
+                title: formData.title.trim(),
+                description: formData.description.trim(),
+                category: formData.category,
                 prepTime: parseInt(formData.prepTime),
+                difficulty: formData.difficulty || 'Easy',
                 calories: formData.calories ? parseInt(formData.calories) : undefined,
                 ingredients: ingredientsArray,
-                instructions: formData.instructions.split('\n').filter(i => i.trim()),
-                image: formData.image || undefined,
+                instructions: instructionsArray,
+                images: imagesArray.length > 0 ? imagesArray : undefined,
+                image: formData.image || undefined, // Keep for backward compatibility
             };
+
+            // Remove undefined fields
+            Object.keys(recipeData).forEach(key => {
+                if (recipeData[key] === undefined) {
+                    delete recipeData[key];
+                }
+            });
+
+            // Debug log
+            console.log('Recipe data to send:', JSON.stringify(recipeData, null, 2));
 
             if (editingRecipe) {
                 await updateRecipe(editingRecipe._id, recipeData);
+                alert('Recipe updated successfully!');
             } else {
                 await createRecipe(recipeData);
+                alert('Recipe created successfully!');
             }
 
             resetForm();
@@ -99,7 +176,26 @@ const AdminPage = () => {
             fetchStats(); // Refresh stats after creating/updating
         } catch (error) {
             console.error('Error saving recipe:', error);
-            alert('Error saving recipe. Please try again.');
+            console.error('Error response:', error.response?.data);
+            
+            let errorMessage = 'Error saving recipe. Please try again.';
+            
+            if (error.response?.data) {
+                const errorData = error.response.data;
+                if (errorData.message) {
+                    errorMessage = errorData.message;
+                } else if (errorData.errors && Array.isArray(errorData.errors)) {
+                    errorMessage = errorData.errors.join(', ');
+                } else if (typeof errorData === 'string') {
+                    errorMessage = errorData;
+                } else {
+                    errorMessage = JSON.stringify(errorData);
+                }
+            } else if (error.message) {
+                errorMessage = error.message;
+            }
+            
+            alert(`Error: ${errorMessage}`);
         }
     };
 
@@ -112,6 +208,7 @@ const AdminPage = () => {
             difficulty: 'Easy',
             calories: '',
             image: '',
+            images: '',
             ingredients: '',
             instructions: '',
         });
@@ -131,6 +228,11 @@ const AdminPage = () => {
             ).join('\n')
             : '';
 
+        // Format images for editing (support both images array and single image)
+        const imagesStr = Array.isArray(recipe.images) && recipe.images.length > 0
+            ? recipe.images.join('\n')
+            : (recipe.image || '');
+
         setFormData({
             title: recipe.title || '',
             description: recipe.description || '',
@@ -138,7 +240,8 @@ const AdminPage = () => {
             prepTime: recipe.prepTime?.toString() || '',
             difficulty: recipe.difficulty || 'Easy',
             calories: recipe.calories?.toString() || '',
-            image: recipe.image || '',
+            image: recipe.image || '', // Keep for backward compatibility
+            images: imagesStr, // New images field
             ingredients: ingredientsStr,
             instructions: Array.isArray(recipe.instructions) 
                 ? recipe.instructions.join('\n') 
@@ -352,21 +455,24 @@ const AdminPage = () => {
                         animate={{ opacity: 1 }}
                     >
                         {/* Recipe Form Modal */}
-                        <AnimatePresence>
+                        <AnimatePresence mode="wait">
                             {showForm && (
                                 <motion.div
+                                    key="modal-overlay"
                                     initial={{ opacity: 0 }}
                                     animate={{ opacity: 1 }}
                                     exit={{ opacity: 0 }}
-                                    className="fixed inset-0 bg-coffee-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-6"
+                                    className="fixed inset-0 bg-coffee-900/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4 md:p-6"
                                     onClick={resetForm}
                                 >
                                     <motion.div
-                                        initial={{ scale: 0.9, opacity: 0 }}
-                                        animate={{ scale: 1, opacity: 1 }}
-                                        exit={{ scale: 0.9, opacity: 0 }}
+                                        key="modal-content"
+                                        initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                                        animate={{ scale: 1, opacity: 1, y: 0 }}
+                                        exit={{ scale: 0.9, opacity: 0, y: 20 }}
+                                        transition={{ type: "spring", damping: 25, stiffness: 300 }}
                                         onClick={(e) => e.stopPropagation()}
-                                        className="glass-card p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+                                        className="bg-white rounded-2xl shadow-2xl p-6 md:p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
                                     >
                                         <div className="flex items-center justify-between mb-6">
                                             <h2 className="text-2xl font-serif font-bold text-coffee-900">
@@ -468,15 +574,31 @@ const AdminPage = () => {
 
                                             <div>
                                                 <label className="block text-sm font-semibold mb-2 text-coffee-800">
-                                                    Image URL
+                                                    Images
                                                 </label>
-                                                <input
-                                                    type="url"
-                                                    value={formData.image}
-                                                    onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                                                    placeholder="https://..."
-                                                    className="search-input"
+                                                <ImageUpload
+                                                    value={formData.images}
+                                                    onChange={(value) => setFormData({ ...formData, images: value })}
+                                                    multiple={true}
+                                                    maxImages={10}
                                                 />
+                                                <p className="text-xs text-coffee-600/60 mt-2">
+                                                    Upload images from your computer or enter URLs below
+                                                </p>
+                                                
+                                                {/* Manual URL input (optional) */}
+                                                <div className="mt-4">
+                                                    <label className="block text-sm font-semibold mb-2 text-coffee-800">
+                                                        Or enter Image URLs manually (one per line)
+                                                    </label>
+                                                    <textarea
+                                                        value={formData.images}
+                                                        onChange={(e) => setFormData({ ...formData, images: e.target.value })}
+                                                        placeholder="https://example.com/image1.jpg&#10;https://example.com/image2.jpg"
+                                                        rows={3}
+                                                        className="search-input font-mono text-sm"
+                                                    />
+                                                </div>
                                             </div>
 
                                             <div>

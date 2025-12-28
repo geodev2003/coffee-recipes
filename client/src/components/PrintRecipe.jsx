@@ -113,9 +113,18 @@ const PrintRecipe = ({ recipe }) => {
                     </div>
                 </div>
                 
-                ${recipe.image || recipe.imageUrl ? `
-                    <img src="${recipe.image || recipe.imageUrl}" alt="${recipe.title}" class="image" />
-                ` : ''}
+                ${(() => {
+                    const images = recipe.images && recipe.images.length > 0 
+                        ? recipe.images 
+                        : (recipe.image || recipe.imageUrl ? [recipe.image || recipe.imageUrl] : []);
+                    
+                    if (images.length > 0) {
+                        return images.map((img, idx) => 
+                            `<img src="${img}" alt="${recipe.title} - Image ${idx + 1}" class="image" style="margin-bottom: ${idx < images.length - 1 ? '20px' : '0'};" />`
+                        ).join('');
+                    }
+                    return '';
+                })()}
                 
                 <div class="section ingredients">
                     <h2>Ingredients</h2>

@@ -2,6 +2,11 @@
 
 A full-stack MERN (MongoDB, Express, React, Node.js) web application for discovering and sharing premium coffee, tea, and mocktail recipes.
 
+## 📚 Documentation
+
+- **[Deployment Guide](./DEPLOYMENT_GUIDE.md)** - Hướng dẫn deploy chi tiết lên server production
+- **[Quick Deployment Guide](./DEPLOYMENT_QUICK_START.md)** - Hướng dẫn deploy nhanh (tóm tắt)
+
 ## 📁 Project Structure
 
 ```

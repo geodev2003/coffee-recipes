@@ -29,7 +29,12 @@ const userAuthRoutes = require('./routes/userAuthRoutes');
 const statisticsRoutes = require('./routes/statisticsRoutes');
 const wishlistRoutes = require('./routes/wishlistRoutes');
 const commentRoutes = require('./routes/commentRoutes');
+const uploadRoutes = require('./routes/uploadRoutes');
+const path = require('path');
 const { protect, adminOnly } = require('./middleware/auth');
+
+// Serve static files from uploads directory
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 app.use('/api/v1/recipes', recipeRoutes);
 app.use('/api/v1/auth', authRoutes); // Admin auth
@@ -37,6 +42,7 @@ app.use('/api/v1/users', userAuthRoutes); // User auth
 app.use('/api/v1/statistics', statisticsRoutes);
 app.use('/api/v1/wishlist', wishlistRoutes);
 app.use('/api/v1/comments', commentRoutes);
+app.use('/api/v1/upload', uploadRoutes);
 
 // Recipe routes are already protected in the routes file
 

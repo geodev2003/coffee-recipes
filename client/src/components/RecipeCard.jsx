@@ -30,7 +30,11 @@ const RecipeCard = ({ recipe }) => {
         >
             <div className="h-56 overflow-hidden relative">
                 <motion.img
-                    src={recipe.image || recipe.imageUrl || "https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&q=80&w=800"}
+                    src={
+                        (recipe.images && recipe.images.length > 0)
+                            ? recipe.images[0]
+                            : (recipe.image || recipe.imageUrl || "https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&q=80&w=800")
+                    }
                     alt={recipe.title}
                     className="w-full h-full object-cover"
                     animate={{ scale: isHovered ? 1.1 : 1 }}

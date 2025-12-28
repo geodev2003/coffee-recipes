@@ -328,4 +328,41 @@ export const addReply = async (commentId, content) => {
     }
 };
 
+// Upload API
+export const uploadImage = async (file) => {
+    try {
+        const formData = new FormData();
+        formData.append('image', file);
+
+        const response = await api.post('/upload/single', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        });
+        return response.data;
+    } catch (error) {
+        console.error("Error uploading image", error);
+        throw error;
+    }
+};
+
+export const uploadImages = async (files) => {
+    try {
+        const formData = new FormData();
+        files.forEach((file) => {
+            formData.append('images', file);
+        });
+
+        const response = await api.post('/upload/multiple', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        });
+        return response.data;
+    } catch (error) {
+        console.error("Error uploading images", error);
+        throw error;
+    }
+};
+
 export default api;
