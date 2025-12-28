@@ -1,13 +1,26 @@
 {
-    "version": 2,
-    "rewrites": [
-      {
-        "source": "/api/v1/(.*)",
-        "destination": "http://localhost:5000"
-      },
-      {
-        "source": "/(.*)",
-        "destination": "client/$1"
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/server.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "client/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
       }
-    ]
-  }
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/api/v1/(.*)",
+      "destination": "/api/server"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/client/$1"
+    }
+  ]
+}
