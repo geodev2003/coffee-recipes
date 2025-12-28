@@ -1,17 +1,52 @@
 const multer = require('multer');
 const path = require('path');
+const fs = require('fs');
 const cloudinary = require('cloudinary').v2;
 const { Readable } = require('stream');
 
-// Configure Cloudinary
-cloudinary.config({
-    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-    api_key: process.env.CLOUDINARY_API_KEY,
-    api_secret: process.env.CLOUDINARY_API_SECRET
-});
+// Check if Cloudinary is configured
+const isCloudinaryConfigured = 
+    process.env.CLOUDINARY_CLOUD_NAME && 
+    process.env.CLOUDINARY_API_KEY && 
+    process.env.CLOUDINARY_API_SECRET;
 
-// Configure multer to use memory storage (for Cloudinary)
-const storage = multer.memoryStorage();
+// Configure Cloudinary if credentials are available
+if (isCloudinaryConfigured) {
+    cloudinary.config({
+        cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+        api_key: process.env.CLOUDINARY_API_KEY,
+        api_secret: process.env.CLOUDINARY_API_SECRET
+    });
+    console.log('✅ Cloudinary configured successfully');
+} else {
+    console.warn('⚠️  Cloudinary not configured. Using local storage fallback.');
+    // Fallback to local storage
+    const uploadsDir = path.join(__dirname, '../uploads');
+    if (!fs.existsSync(uploadsDir)) {
+        fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+}
+
+// Configure multer storage based on Cloudinary availability
+let storage;
+if (isCloudinaryConfigured) {
+    // Use memory storage for Cloudinary
+    storage = multer.memoryStorage();
+} else {
+    // Use disk storage for local fallback
+    const uploadsDir = path.join(__dirname, '../uploads');
+    storage = multer.diskStorage({
+        destination: (req, file, cb) => {
+            cb(null, uploadsDir);
+        },
+        filename: (req, file, cb) => {
+            const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+            const ext = path.extname(file.originalname);
+            const name = path.basename(file.originalname, ext);
+            cb(null, `${name}-${uniqueSuffix}${ext}`);
+        }
+    });
+}
 
 // File filter - only images
 const fileFilter = (req, file, cb) => {
@@ -70,7 +105,7 @@ const uploadToCloudinary = (buffer, folder = 'coffee-recipes') => {
     });
 };
 
-// Upload handler - upload to Cloudinary
+// Upload handler - upload to Cloudinary or local storage
 exports.uploadImage = async (req, res) => {
     try {
         if (!req.file) {
@@ -80,27 +115,64 @@ exports.uploadImage = async (req, res) => {
             });
         }
 
-        // Upload to Cloudinary
-        const result = await uploadToCloudinary(req.file.buffer, 'coffee-recipes');
+        // Try Cloudinary first if configured
+        if (isCloudinaryConfigured) {
+            try {
+                const result = await uploadToCloudinary(req.file.buffer, 'coffee-recipes');
+                return res.status(200).json({
+                    success: true,
+                    message: 'File uploaded successfully to Cloudinary',
+                    url: result.secure_url,
+                    public_id: result.public_id,
+                    filename: result.original_filename
+                });
+            } catch (cloudinaryError) {
+                console.error('Cloudinary upload error:', cloudinaryError);
+                // Fallback to local storage if Cloudinary fails
+                console.log('Falling back to local storage...');
+            }
+        }
 
+        // Fallback to local storage
+        if (!req.file.filename) {
+            // If using memory storage but Cloudinary failed, save to disk
+            const uploadsDir = path.join(__dirname, '../uploads');
+            const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+            const ext = path.extname(req.file.originalname);
+            const name = path.basename(req.file.originalname, ext);
+            const filename = `${name}-${uniqueSuffix}${ext}`;
+            const filepath = path.join(uploadsDir, filename);
+            
+            fs.writeFileSync(filepath, req.file.buffer);
+            const fileUrl = `/uploads/${filename}`;
+            
+            return res.status(200).json({
+                success: true,
+                message: 'File uploaded successfully to local storage',
+                url: fileUrl,
+                filename: filename
+            });
+        }
+
+        // If already saved to disk (diskStorage)
+        const fileUrl = `/uploads/${req.file.filename}`;
         res.status(200).json({
             success: true,
-            message: 'File uploaded successfully',
-            url: result.secure_url, // Cloudinary secure URL
-            public_id: result.public_id, // For future deletion if needed
-            filename: result.original_filename
+            message: 'File uploaded successfully to local storage',
+            url: fileUrl,
+            filename: req.file.filename
         });
     } catch (error) {
         console.error('Upload error:', error);
         res.status(500).json({
             success: false,
-            message: 'Error uploading file to Cloudinary',
+            message: 'Error uploading file',
             error: error.message
         });
     }
 };
 
-// Upload multiple images - upload to Cloudinary
+// Upload multiple images - upload to Cloudinary or local storage
 exports.uploadImages = async (req, res) => {
     try {
         if (!req.files || req.files.length === 0) {
@@ -110,29 +182,64 @@ exports.uploadImages = async (req, res) => {
             });
         }
 
-        // Upload all files to Cloudinary in parallel
-        const uploadPromises = req.files.map(file => 
-            uploadToCloudinary(file.buffer, 'coffee-recipes')
-        );
+        // Try Cloudinary first if configured
+        if (isCloudinaryConfigured) {
+            try {
+                const uploadPromises = req.files.map(file => 
+                    uploadToCloudinary(file.buffer, 'coffee-recipes')
+                );
+                const results = await Promise.all(uploadPromises);
+                const fileUrls = results.map(result => ({
+                    url: result.secure_url,
+                    public_id: result.public_id,
+                    filename: result.original_filename
+                }));
+                return res.status(200).json({
+                    success: true,
+                    message: 'Files uploaded successfully to Cloudinary',
+                    files: fileUrls
+                });
+            } catch (cloudinaryError) {
+                console.error('Cloudinary upload error:', cloudinaryError);
+                console.log('Falling back to local storage...');
+            }
+        }
 
-        const results = await Promise.all(uploadPromises);
-
-        const fileUrls = results.map(result => ({
-            url: result.secure_url,
-            public_id: result.public_id,
-            filename: result.original_filename
-        }));
+        // Fallback to local storage
+        const uploadsDir = path.join(__dirname, '../uploads');
+        const fileUrls = [];
+        
+        for (const file of req.files) {
+            let filename;
+            if (file.filename) {
+                // Already saved to disk
+                filename = file.filename;
+            } else {
+                // Save from buffer
+                const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+                const ext = path.extname(file.originalname);
+                const name = path.basename(file.originalname, ext);
+                filename = `${name}-${uniqueSuffix}${ext}`;
+                const filepath = path.join(uploadsDir, filename);
+                fs.writeFileSync(filepath, file.buffer);
+            }
+            
+            fileUrls.push({
+                url: `/uploads/${filename}`,
+                filename: filename
+            });
+        }
 
         res.status(200).json({
             success: true,
-            message: 'Files uploaded successfully',
+            message: 'Files uploaded successfully to local storage',
             files: fileUrls
         });
     } catch (error) {
         console.error('Upload error:', error);
         res.status(500).json({
             success: false,
-            message: 'Error uploading files to Cloudinary',
+            message: 'Error uploading files',
             error: error.message
         });
     }
