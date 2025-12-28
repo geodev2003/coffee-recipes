@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://localhost:5000/api/:path*"
+      "destination": "https://insightful-dream-production.up.railway.app/api/:path*"
     },
     {
       "source": "/(.*)",
